@@ -25,8 +25,6 @@ def iterateFile(path):
             if(lineType != []):
                 handleLine(lineType[0],line,termFile,yearFile,recFile)
             
-    
-            
 #handles each line from the data file based on its starting tag.
 def handleLine(lineType,line,termFile,yearFile,recFile):
     #Do nothing
@@ -53,25 +51,18 @@ def handleArticle(line,termFile,yearFile,recFile):
     for term in terms:
         if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
             termFile.write('t-'+term.lower()+':'+key+'\n')
-       
-    #write terms from author
-    authTemp = re.findall(r'<author>(.*?)</author>',line)
-    auth = []
-    for a in authTemp:
-        a = re.sub('[^0-9a-zA-Z]+', ' ',a)
-        auth.append(a)
-        auth[auth.index(a)] = a.split(' ')
-    for authors in auth:
-        for term in authors:
-            if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
-                termFile.write('a-'+term.lower()+':'+key+'\n')
     
     #write terms from journal
     j = re.findall(r'<journal>(.*?)</journal>',line)
-    journal = j[0].split(' ')
-    for term in journal:
-        if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
-            termFile.write('o-'+term.lower()+':'+key+'\n')
+    journal = []
+    for ji in j:
+        ji = re.sub('[^0-9a-zA-Z]+', ' ',ji)
+        journal.append(ji)
+        journal[journal.index(ji)] = ji.split(' ')
+    for jo in journal:
+        for term in jo:
+            if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
+                termFile.write('o-'+term.lower()+':'+key+'\n')
             
     #write terms from publisher
     try:
@@ -82,7 +73,18 @@ def handleArticle(line,termFile,yearFile,recFile):
                 termFile.write('o-'+term.lower()+':'+key+'\n')            
     except:
         pass
-    
+
+    #write terms from author
+    authTemp = re.findall(r'<author>(.*?)</author>',line)
+    auth = []
+    for a in authTemp:
+        a = re.sub('[^0-9a-zA-Z]+', ' ',a)
+        auth.append(a)
+        auth[auth.index(a)] = a.split(' ')
+    for authors in auth:
+        for term in authors:
+            if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
+                termFile.write('a-'+term.lower()+':'+key+'\n')  
         
     a = re.findall(r'<year>(.*?)</year>',line)
     year = a[0] 
@@ -111,18 +113,6 @@ def handleInproceeding(line,termFile,yearFile,recFile):
     for term in terms:
         if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
             termFile.write('t-'+term.lower()+':'+key+'\n')
-    
-    #write the terms in author
-    authTemp = re.findall(r'<author>(.*?)</author>',line)
-    auth = []
-    for a in authTemp:
-        a = re.sub('[^0-9a-zA-Z]+', ' ',a)
-        auth.append(a)        
-        auth[auth.index(a)] = a.split(' ')
-    for authors in auth:
-        for term in authors:
-            if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
-                termFile.write('a-'+term.lower()+':'+key+'\n')
             
     #write the terms in booktitle
     j = re.findall(r'<booktitle>(.*?)</booktitle>',line)
@@ -139,6 +129,18 @@ def handleInproceeding(line,termFile,yearFile,recFile):
                 termFile.write('o-'+term.lower()+':'+key+'\n')            
     except:
         pass
+
+    #write the terms in author
+    authTemp = re.findall(r'<author>(.*?)</author>',line)
+    auth = []
+    for a in authTemp:
+        a = re.sub('[^0-9a-zA-Z]+', ' ',a)
+        auth.append(a)        
+        auth[auth.index(a)] = a.split(' ')
+    for authors in auth:
+        for term in authors:
+            if(len(term)>2) and (re.match("^[0-9a-zA-Z_]*$",term)):
+                termFile.write('a-'+term.lower()+':'+key+'\n')
     
     #grab year and write to years.txt
         
@@ -154,7 +156,7 @@ def handleInproceeding(line,termFile,yearFile,recFile):
     return 0
 
 def main():
-    path = input("Please enter the path of the data file to read:")
+    path = input("Please enter the path of the data file to read: ")
     
     if(path == ''):
             print('\nNo data file path given!')
