@@ -1,4 +1,6 @@
 /years.txt
 /recs.txt
 /terms.txt
-
+/files
+/__pycache__
+/main.py
