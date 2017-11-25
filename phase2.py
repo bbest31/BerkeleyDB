@@ -39,7 +39,7 @@ def phase_two():
 def main():
     phase_two()
 
-    print("\nPhase 1 complete!\n")
+    print("\nPhase 2 complete!\n")
 
     return True
 
