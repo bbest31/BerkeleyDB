@@ -3,23 +3,58 @@ from bsddb3 import db
 
 #return a list of matches
 def termQry(term,mode,tCursor,rCursor):
-   #iterate all to find
+   
    matches = []
-   #iter = tCursor.first()
-   #while (iter):
-      #if(iter[0][2:].decode() == term):
-         #if(mode == 1):
-            #matches.append(iter[1].decode())
-         #else:
-            ##add the full record
-            
-      #iter = tCursor.next()   
-   if(tCursor.get(b't-'+ term.encode(),db.DB_SET) != None):
-      matches.append(tCursor.get(b't-'+ term.encode(),db.DB_SET))
-   if(tCursor.get(b'a-'+ term.encode(),db.DB_SET) != None):   
-      matches.append(tCursor.get(b'a-'+ term.encode(),db.DB_SET))
-   if(tCursor.get(b'o-'+ term.encode(),db.DB_SET) !=None):
-      matches.append(tCursor.get(b'o-'+ term.encode(),db.DB_SET))
+   record = tCursor.get(b't-'+ term.encode(),db.DB_SET)
+   if(record != None):
+      #Add the match found
+      if(mode == 0):
+         matches.append(record[1].decode())
+      else:
+         matches.append(rCursor.get(record[1],db.DB_SET))
+      #Add all other instances in title
+      dup = tCursor.next_dup()
+      while(dup!=None):
+         if(mode == 0):
+            matches.append(dup[1].decode())
+         else:
+            matches.append(rCursor.get(dup[1],db.DB_SET))
+         dup = tCursor.next_dup()
+   
+   record = tCursor.get(b'a-'+ term.encode(),db.DB_SET)
+   if(record != None):
+      #Add the match found
+      if(mode == 0):
+         matches.append(record[1].decode())
+      else:
+         matches.append(rCursor.get(record[1],db.DB_SET))
+         
+      #Add all other instances in title
+      dup = tCursor.next_dup()
+      while(dup!=None):
+         if(mode == 0):
+            matches.append(dup[1].decode())
+         else:
+            matches.append(rCursor.get(dup[1],db.DB_SET))
+         dup = tCursor.next_dup()
+   
+   record = tCursor.get(b'o-'+ term.encode(),db.DB_SET) 
+   if(record !=None):
+      #Add the match found
+      if(mode == 0):
+         matches.append(record[1].decode())
+      else:
+         matches.append(rCursor.get(record[1],db.DB_SET))
+         
+      #Add all other instances in title
+      dup = tCursor.next_dup()
+      while(dup!=None):
+         if(mode == 0):
+            matches.append(dup[1].decode())
+         else:
+            matches.append(rCursor.get(dup[1],db.DB_SET))
+         dup = tCursor.next_dup()
+         
    
    return matches
 
@@ -231,7 +266,7 @@ def main():
          elif(outputMode == 0):
             for r in results:
                r = str(r)
-               print("Key: "+r+'\n')
+               print("\nKey: "+r)
          #Print in full mode
          else:
             for r in results:
