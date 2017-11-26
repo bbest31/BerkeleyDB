@@ -3,10 +3,24 @@ from bsddb3 import db
 
 #return a list of matches
 def termQry(term,mode,tCursor,rCursor):
+   #iterate all to find
+   matches = []
+   #iter = tCursor.first()
+   #while (iter):
+      #if(iter[0][2:].decode() == term):
+         #if(mode == 1):
+            #matches.append(iter[1].decode())
+         #else:
+            ##add the full record
+            
+      #iter = tCursor.next()   
+   if(tCursor.get(b't-'+ term.encode(),db.DB_SET) != None):
+      matches.append(tCursor.get(b't-'+ term.encode(),db.DB_SET))
+   if(tCursor.get(b'a-'+ term.encode(),db.DB_SET) != None):   
+      matches.append(tCursor.get(b'a-'+ term.encode(),db.DB_SET))
+   if(tCursor.get(b'o-'+ term.encode(),db.DB_SET) !=None):
+      matches.append(tCursor.get(b'o-'+ term.encode(),db.DB_SET))
    
-
-   matches = tCursor.get(b't-'+ term.encode())
-   #
    return matches
 
 #queries of the form field:param. Should return a list of matches
@@ -126,6 +140,7 @@ def queryHandler(query,mode,termsCurs,yearsCurs,recsCurs):
 def termsDBConstructor():
    try:
       database = db.DB()
+      database.set_flags(db.DB_DUP)
       DB_File = "te.idx"
       database.open(DB_File,None,db.DB_BTREE,db.DB_CREATE)
    except:
@@ -137,6 +152,7 @@ def termsDBConstructor():
 def yearsDBConsuctor():
    try:
       database = db.DB()
+      database.set_flags(db.DB_DUP)
       DB_File = "ye.idx"
       database.open(DB_File,None,db.DB_BTREE,db.DB_CREATE)
    except:
@@ -148,6 +164,7 @@ def yearsDBConsuctor():
 def recsDBConstructor():
    try:
       database = db.DB()
+      database.set_flags(db.DB_DUP)
       DB_File = "re.idx"
       database.open(DB_File,None,db.DB_HASH,db.DB_CREATE)
    except:
