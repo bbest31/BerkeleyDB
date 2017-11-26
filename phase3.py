@@ -2,7 +2,7 @@
 from bsddb3 import db
 
 #return a list of matches
-def termQry(term,mode,tCursor,rCursor,tDB,rDB):
+def termQry(term,mode,tCursor,rCursor):
    
 
    matches = tCursor.get(b't-'+ term.encode())
@@ -22,7 +22,7 @@ def doubleRangeQry(field,param,mode,yCursor):
    return 0
 
 #Handles singular clause queries.
-def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor,tDB,yDB,rDB):
+def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
    matches = []
    #gets the index of the operator
    op = operandIndex(query)
@@ -43,7 +43,7 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor,tDB,yDB,rDB):
          matches = singleRangeQry(field,param,mode,tCursor,yCursor,rCursor)
             
    else:
-      matches = termQry(query,mode,tCursor,rCursor,tDB,rDB)
+      matches = termQry(query,mode,tCursor,rCursor)
       
    return matches
 
@@ -51,7 +51,7 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor,tDB,yDB,rDB):
 #We can treat each clause individually and take the intersection of them all.
 #Need to find a way to split the query into clauses without splitting the conditions in the form "term term term"
 #Thinking of replacing any space in the phrase with $(or any unallowed title char), do split() on the while query and then turn the $ back into spaces.
-def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor,tDB,yDB,rDB):
+def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
    
    #Find the range queries and assert that there is at most 2 and they must be different directions <,>
    if(query.count('<')>1) or (query.count('>')>1):
@@ -85,7 +85,7 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor,tDB,yDB,rDB):
       if(qry.count('$')>0):
          qry.replace('$',' ')
          
-      match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor,tDB,yDB,rDB)
+      match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
       matches.append(match)
       
    #now matches is a list of list which contains matching records in each
@@ -110,15 +110,15 @@ def operandIndex(clause):
       
 #Method to handle the input that are not output changes or program exits but queries.
 #We can then perform queries on the appropriate fields using the specified operator and using the given parameter.
-def queryHandler(query,mode,termsCurs,yearsCurs,recsCurs,tDB,yDB,rDB):
+def queryHandler(query,mode,termsCurs,yearsCurs,recsCurs):
    
    #Need to determine what form the query is in.
    #singular clause:  i.e field:param, field<param, field>param, field:"param phrase"
    #multi clause: i.e. field:param field:param, etc.
    if(query.count(" ") == 0):
-      results = singleClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs,tDB,yDB,rDB)
+      results = singleClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs)
    else:
-      results = multiClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs,tDB,yDB,rDB)
+      results = multiClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs)
    return results
 
 
@@ -205,7 +205,7 @@ def main():
          print("\n========|Output Format Changed|========")
       #Handle Query
       else:
-         results = queryHandler(query,outputMode,termsCurs,yearsCurs,recsCurs,termsDB,yearsDB,recsDB)
+         results = queryHandler(query,outputMode,termsCurs,yearsCurs,recsCurs)
          
          #Need to format print based on mode
          if(len(results) == 0):
