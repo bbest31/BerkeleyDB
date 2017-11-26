@@ -1,10 +1,85 @@
 #Phase 3: Data Retrieval
 from bsddb3 import db
 
-def singularClauseQuery(query):
+#return a list of matches
+def termQry(term,mode,tCursor,yCursor,rCursor):
+   return 0
+
+#queries of the form field:param. Should return a list of matches
+def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
+   
+   return 0
+#return a list of matches
+def singleRangeQry(field,param,mode,tCursor,yCursor,rCursor):
+   return 0
+
+#Handles singular clause queries.
+def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
+   
+   #gets the index of the operator
    op = operandIndex(query)
    
-
+   if(op != None):
+      #identify query operator
+      if(query[op] == ":"):
+         
+         field = query[:op]
+         field = field.lower
+         param = query[op:]
+         
+         matches = equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor)
+      else:
+         matches = singleRangeQry(field,param,mode,tCursor,yCursor,rCursor):
+            
+   else:
+      matches = termQry(query,mode,tCursor,yCursor,rCursor)
+      
+   return matches
+#Handles multi claused queries.
+#We can treat each clause individually and take the intersection of them all.
+#Need to find a way to split the query into clauses without splitting the conditions in the form "term term term"
+#Thinking of replacing any space in the phrase with $(or any unallowed title char), do split() on the while query and then turn the $ back into spaces.
+def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
+   
+   #Find the range queries and assert that there is at most 2 and they must be different directions <,>
+   if(query.count('<')>1) or (query.count('>')>1):
+      raise ValueError("\nInvalid range query combination.")
+   
+   #if there is 1 or more phrase clauses we will alter the phrase to not interfere with the query splitting.
+   if(query.count('"') >= 2):
+   
+      #we get all the indexes of the quotations
+      quotations = []
+      i = 0
+      for i in range(0, len(query)-1):
+         if(query[i] == '"'):
+            quotations.append(i)
+      
+      #Altering phrase clause(s)
+      while(len(quotations) != 0):
+         #for each phrase (in between each set of quotations)
+         for i in range(quotations[0], quotations[1]):
+            if(query[i] == " "):
+               query[i] = '$'
+         quotations.pop(0)
+         quotations.pop(0)
+   
+   queries = query.split()
+   
+      
+   matches = []
+   for qry in queries:
+      #reformat phrase query
+      if(qry.count('$')>0):
+         qry.replace('$',' ')
+         
+      match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
+      matches.append(match)
+      
+   #now matches is a list of list which contains matching records in each
+   #We now want to get the intersection of all these sets in order to find the real results.
+   
+   return 0
 #This method will identify the operator in the query clause being used and return the index.
 def operandIndex(clause):
    for c in clause:
@@ -17,21 +92,17 @@ def operandIndex(clause):
    return None
       
 #Method to handle the input that are not output changes or program exits but queries.
-#We will break each query into field-operand-parameter groups.
 #We can then perform queries on the appropriate fields using the specified operator and using the given parameter.
-def queryHandler(query,mode,termsDB,yearsDB,recsDB):
-   
-   termsCursor = termsDB.cursor()
-   yearsCursor = yearsDB.cursor()
-   recsCursor = recsDB.cursor()
+def queryHandler(query,mode,termsCurs,yearsCurs,recsCurs):
    
    #Need to determine what form the query is in.
    #singular clause:  i.e field:param, field<param, field>param, field:"param phrase"
-   #Evalute singlular field-parameter queries
-  
-   
-   
-   return 0
+   #multi clause: i.e. field:param field:param, etc.
+   if(query.count(" ") == 0):
+      results = singleClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs)
+   else:
+      results = multiClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs)
+   return results
 
 
 #termsDBConstructor creates the database object from the te.idx file.
@@ -75,6 +146,10 @@ def main():
       termsDB = termsDBConstructor()
       yearsDB = yearsDBConsuctor()
       recsDB = recsDBConstructor()
+      #initialize cursors
+      termsCurs = termsDB.cursor()
+      yearsCurs = yearsDB.cursor()
+      recsCurs = recsDB.cursor()      
    except:
       return False
    
@@ -106,7 +181,7 @@ def main():
          print("\n========|Output Format Changed|========")
       #Handle Query
       else:
-         queryHandler(query,outputMode,termsDB,yearsDB,recsDB)
+         results = queryHandler(query,outputMode,termsCurs,yearsCurs,recsCurs)
          print("\n========|^Results^|========")
    print("\n========|Program Closed|========")
    return 0
