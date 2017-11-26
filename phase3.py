@@ -35,6 +35,7 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       matches = termQry(query,mode,tCursor,yCursor,rCursor)
       
    return matches
+
 #Handles multi claused queries.
 #We can treat each clause individually and take the intersection of them all.
 #Need to find a way to split the query into clauses without splitting the conditions in the form "term term term"
@@ -78,8 +79,13 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       
    #now matches is a list of list which contains matching records in each
    #We now want to get the intersection of all these sets in order to find the real results.
-   
-   return 0
+   result = matches[0]
+   matches.pop(0)
+   for match in matches:
+      result = set(result).intersection(match)
+   return result
+
+
 #This method will identify the operator in the query clause being used and return the index.
 def operandIndex(clause):
    for c in clause:
@@ -182,6 +188,19 @@ def main():
       #Handle Query
       else:
          results = queryHandler(query,outputMode,termsCurs,yearsCurs,recsCurs)
+         #Need to format print based on mode
+         if(len(results) == 0):
+            print("\nNo matches found.")
+         #Print in key mode
+         elif(outputMode == 0):
+            for r in results:
+               print("Key: "+r+'\n')
+         #Print in full mode
+         else:
+            for r in results:
+               #Will format this later
+               print('\n'+r)
+               
          print("\n========|^Results^|========")
    print("\n========|Program Closed|========")
    return 0
