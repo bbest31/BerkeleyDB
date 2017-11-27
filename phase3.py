@@ -1,5 +1,6 @@
 #Phase 3: Data Retrieval
 from bsddb3 import db
+import re
 
 #return a list of matches
 def termQry(term,mode,tCursor,rCursor):
@@ -29,7 +30,7 @@ def termQry(term,mode,tCursor,rCursor):
       else:
          matches.append(rCursor.get(record[1],db.DB_SET))
          
-      #Add all other instances in title
+      #Add all other instances in author
       dup = tCursor.next_dup()
       while(dup!=None):
          if(mode == 0):
@@ -46,7 +47,7 @@ def termQry(term,mode,tCursor,rCursor):
       else:
          matches.append(rCursor.get(record[1],db.DB_SET))
          
-      #Add all other instances in title
+      #Add all other instances in other
       dup = tCursor.next_dup()
       while(dup!=None):
          if(mode == 0):
@@ -60,9 +61,173 @@ def termQry(term,mode,tCursor,rCursor):
 
 #queries of the form field:param. Should return a list of matches
 def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
+   matches = []
    
-   return 0
+   if(field != 'title' and field != 'author' and field!='year' and field != 'other'):
+      print('\nInvalid prefix format!')
+      return matches
+   #Identifies this as a phrase query
+   if(param[0] == '"' and param[-1] == '"' and field != 'year' and param.count('"') == 2):
+      
+      param = param.replace('"','')
+      terms = param.split()
+      
+      phrase = ''
+      query = ''
+      #Here we build a multi-clause query using the prefix given in field and the terms we split up from the phrase
+      #as well we rebuild the phrase for later use
+      for t in terms:
+         phrase += t+' '
+         t = field+':'+ t+' '
+         query = query + t
+      query = query.strip()
+      #The multiClauseQryHdlr() will give us the keys of the records which have all the terms from the phrase in it.
+      matches = multiClauseQryHdlr(query,0,tCursor,yCursor,rCursor)
+      
+      phrase = phrase.strip()
+      phraseMatches = []
+      #Now we check to see if the match we found in the multi clause handler has that exact subtring in any of the fields
+      for m in matches:
+         record = rCursor.get(m.encode(),db.DB_SET)
+         full = record[1].decode()
+         
+         #Now search for substring in the appropriate field.
+         #Search in the title field
+         if(field == 'title'):
+            title = re.findall(r'<title>(.*?)</title>',full)            
+            if(phrase in title[0].lower()):
+               if(mode == 0):
+                  phraseMatches.append(m)
+               else:
+                  phraseMatches.append(full)
+                  
+         #Search in the author field
+         elif(field == 'author'):
+            author = re.findall(r'<author>(.*?)</author>',full)
+            if(phrase in author[0].lower()):
+               if(mode == 0):
+                  phraseMatches.append(m)
+               else:
+                  phraseMatches.append(full)
+                  
+                  
+         #identify if the record is an article or inproceeding      
+         elif(field == 'other'):
+            lineType = re.findall(r'(?<=\<).+?(?=\ )',full)
+            ltype = lineType[0]
+            
+            #Search in journal and publisher fields if article
+            if(ltype == 'article'):
+               journal = re.findall(r'<journal>(.*?)</journal>',full)
+               if(phrase in journal[0].lower()):
+                  if(mode == 0):
+                     phraseMatches.append(m)
+                  else:
+                     phraseMatches.append(full)
+               else:
+                  publisher = re.findall(r'<publisher>(.*?)</publisher>',full)
+                  if(phrase in publisher[0].lower()):
+                     if(mode == 0):
+                        phraseMatches.append(m)
+                     else:
+                        phraseMatches.append(full)
+                        
+            #Search in booktitle and publisher fields if inproceedings         
+            elif(ltype == 'inproceedings'):
+               bookTitle = re.findall(r'<booktitle>(.*?)</booktitle>',full)
+               if(phrase in bookTitle[0].lower()):
+                  if(mode == 0):
+                     phraseMatches.append(m)
+                  else:
+                     phraseMatches.append(full)
+               else:
+                  publisher = re.findall(r'<publisher>(.*?)</publisher>',full)
+                  if(phrase in publisher[0].lower()):
+                     if(mode == 0):
+                        phraseMatches.append(m)
+                     else:
+                        phraseMatches.append(full)               
+      return phraseMatches
+   
+   elif(param.count('"')==0):
+      
+      #Query had form title:x
+      if(field == 'title'):
+         record = tCursor.get(b't-'+ param.encode(),db.DB_SET)
+         if(record != None):
+            #Add the match found
+            if(mode == 0):
+               matches.append(record[1].decode())
+            else:
+               matches.append(rCursor.get(record[1],db.DB_SET))
+            #Add all other instances in title
+            dup = tCursor.next_dup()
+            while(dup!=None):
+               if(mode == 0):
+                  matches.append(dup[1].decode())
+               else:
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
+               dup = tCursor.next_dup()      
+      #Query had form author:x 
+      elif(field == 'author'):
+         record = tCursor.get(b'a-'+ param.encode(),db.DB_SET)
+         if(record != None):
+            #Add the match found
+            if(mode == 0):
+               matches.append(record[1].decode())
+            else:
+               matches.append(rCursor.get(record[1],db.DB_SET))
+            #Add all other instances in author
+            dup = tCursor.next_dup()
+            while(dup!=None):
+               if(mode == 0):
+                  matches.append(dup[1].decode())
+               else:
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
+               dup = tCursor.next_dup()
+      #Query had form other:x        
+      elif(field == 'other'):
+         record = tCursor.get(b't-'+ term.encode(),db.DB_SET)
+         if(record != None):
+            #Add the match found
+            if(mode == 0):
+               matches.append(record[1].decode())
+            else:
+               matches.append(rCursor.get(record[1],db.DB_SET))
+            #Add all other instances in title
+            dup = tCursor.next_dup()
+            while(dup!=None):
+               if(mode == 0):
+                  matches.append(dup[1].decode())
+               else:
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
+               dup = tCursor.next_dup()      
+      #Query had form year:x   
+      elif(field == 'year'):
+         record = yCursor.get(param.encode(),db.DB_SET)
+         if(record != None):
+            #Add the match found
+            if(mode == 0):
+               matches.append(record[1].decode())
+            else:
+               matches.append(rCursor.get(record[1],db.DB_SET))
+            #Add all other instances where year = param
+            dup = yCursor.next_dup()
+            while(dup!=None):
+               if(mode == 0):
+                  matches.append(dup[1].decode())
+               else:
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
+               dup = yCursor.next_dup()      
+      else:
+         print('\nInvalid prefix search!')
+   else:
+      print('\nInvalid condition format!')
+      
+   return matches
+
 #return a list of matches
+#Look at Range_Search.py from BerkeleyDB lab 
 def singleRangeQry(field,param,mode,tCursor,yCursor,rCursor):
    return 0
 
@@ -78,12 +243,12 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
    
    if(op != None):
       #identify query operator
+      field = query[:op]
+      field = field.lower()
+      param = query[op+1:] 
+      
       if(query[op] == ":"):
-         
-         field = query[:op]
-         field = field.lower
-         param = query[op:]
-         
+         param = param.lower()
          matches = equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor)
       elif(query[op] == "<") or (query[op] == ">"):
          matches = singleRangeQry(field,param,mode,yCursor)
@@ -92,6 +257,7 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
          matches = singleRangeQry(field,param,mode,tCursor,yCursor,rCursor)
             
    else:
+      query = query.lower()
       matches = termQry(query,mode,tCursor,rCursor)
       
    return matches
@@ -112,25 +278,28 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       #we get all the indexes of the quotations
       quotations = []
       i = 0
-      for i in range(0, len(query)-1):
+      for i in range(0, len(query)):
          if(query[i] == '"'):
             quotations.append(i)
       
       #Altering phrase clause(s)
       while(len(quotations) != 0):
-         #for each phrase (in between each set of quotations)
-         for i in range(quotations[0], quotations[1]):
-            if(query[i] == " "):
-               query[i] = '$'
+         #We get everything to the left of the leftmost quotation-mark, everything in between and everything to the right of the rightmost quotation-mark.
+         tempLeft = query[:quotations[0]+1]
+         tempMid = query[quotations[0]+1:quotations[1]]
+         tempRight = query[quotations[1]:]
+         #We replace all spaces inside quotation marks with $
+         tempMid = tempMid.replace(' ','$')
+         query = tempLeft+tempMid+tempRight         
          quotations.pop(0)
          quotations.pop(0)
    
    queries = query.split()
-   
-      
+
+     
    matches = []
    for qry in queries:
-      #reformat phrase query
+      #Reformat phrase query
       if(qry.count('$')>0):
          qry.replace('$',' ')
          
@@ -164,7 +333,30 @@ def queryHandler(query,mode,termsCurs,yearsCurs,recsCurs):
    #Need to determine what form the query is in.
    #singular clause:  i.e field:param, field<param, field>param, field:"param phrase"
    #multi clause: i.e. field:param field:param, etc.
-   if(query.count(" ") == 0):
+   #This changes all spaces inside quotations to $ for phrase queries in order to accurately discern single or multi clause query format
+   temp = query
+   if(query.count('"') >= 2):
+   
+      #we get all the indexes of the quotations
+      quotations = []
+      i = 0
+      for i in range(0, len(temp)):
+         if(temp[i] == '"'):
+            quotations.append(i)
+      
+      #Altering phrase clause(s)
+      while(len(quotations) != 0):
+         #We get everything to the left of the leftmost quotation-mark, everything in between and everything to the right of the rightmost quotation-mark.
+         tempLeft = temp[:quotations[0]+1]
+         tempMid = temp[quotations[0]+1:quotations[1]]
+         tempRight = temp[quotations[1]:]
+         #We replace all spaces inside quotation marks with $
+         tempMid = tempMid.replace(' ','$')
+         temp = tempLeft+tempMid+tempRight         
+         quotations.pop(0)
+         quotations.pop(0)
+         
+   if(temp.count(" ") == 0):
       results = singleClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs)
    else:
       results = multiClauseQryHdlr(query,mode,termsCurs,yearsCurs,recsCurs)
