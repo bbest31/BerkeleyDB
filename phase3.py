@@ -267,7 +267,7 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
 #Need to find a way to split the query into clauses without splitting the conditions in the form "term term term"
 #Thinking of replacing any space in the phrase with $(or any unallowed title char), do split() on the while query and then turn the $ back into spaces.
 def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
-   
+   matches = []
    #Find the range queries and assert that there is at most 2 and they must be different directions <,>
    if(query.count('<')>1) or (query.count('>')>1):
       raise ValueError("\nInvalid range query combination.")
@@ -293,19 +293,25 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
          query = tempLeft+tempMid+tempRight         
          quotations.pop(0)
          quotations.pop(0)
-   
-   queries = query.split()
-
-     
-   matches = []
-   for qry in queries:
-      #Reformat phrase query
-      if(qry.count('$')>0):
-         qry.replace('$',' ')
-         
-      match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
-      matches.append(match)
       
+      queries = query.split()
+   
+      for qry in queries:
+         #Reformat phrase query
+         if('$' in qry):
+            qry = qry.replace('$',' ')
+  
+         match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
+         matches.append(match)
+   else:
+      queries = query.split()
+      
+      for qry in queries:
+         #Reformat phrase query
+         if('$' in qry):
+            qry = qry.replace('$',' ')
+         match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
+         matches.append(match)      
    #now matches is a list of list which contains matching records in each
    #We now want to get the intersection of all these sets in order to find the real results.
    result = matches[0]
