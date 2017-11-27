@@ -270,13 +270,66 @@ def singleRangeQry(field,param,op,mode,yCursor,rCursor):
 #You got two queries passed in that are identified as both being range queries and one is < and one is >
 #return the list of keys or full records that fall in this range.
 def doubleRangeQry(qry1,qry2,mode,yCursor,rCursor):
+   match = []
    matches = []
-   print('Got to double range query')
-   #
-   #
-   #
-   #
-   #
+   op = operandIndex(qry1)
+   qrys = []
+   qrys.append(qry1)
+   qrys.append(qry2)
+
+   if(op != None):
+      for query in qrys:
+         #identify query operator
+         field = query[:op]
+         field = field.lower()
+         param = query[op+1:]
+         if(param == ''):
+            print("\nEmpty condition!")
+            return matches
+         elif(query[op] == "<") or (query[op] == ">"):
+            match = singleRangeQry(field,param,query[op],mode,yCursor,rCursor)
+            for m in match:
+               matches.append(m)
+
+   matches = list(set(matches))
+   #Input error cases
+   # if(field != 'year'):
+   #    print("\nInvalid range search prefix!")
+   #    return matches
+   # try:
+   #    p = int(param)
+   # except:
+   #    print("\nInvalid range search!")
+   #    return matches
+   
+   
+
+   # for op in operations:
+   #    #Handle greater than
+   #    if(op == '>'):
+   #       #Gets the first record greater than or equal to the param
+   #       record = yCursor.set_range(param.encode())
+   #       if(record != None and mode == 0):
+   #          while(record):
+   #             matches.append(record[1].decode())
+   #             record = yCursor.next()
+   #          return matches
+   #       elif(record != None and mode == 1):
+   #          while(record):
+   #             matches.append(rCursor.get(record[1],db.DB_SET).decode())
+   #             record = yCursor.next()
+   #    #Handle less than
+   #    elif(op == '<'):
+   #       record = yCursor.set_range(param.encode())
+   #       if(record != None and mode == 0):
+   #          while(record):
+   #             matches.append(record[1].decode())
+   #             record = yCursor.prev()
+   #          return matches
+   #       elif(record != None and mode == 1):
+   #          while(record):
+   #             matches.append(rCursor.get(record[1],db.DB_SET).decode())      
+   #             record = yCursor.prev()
    
    return matches
 
@@ -360,8 +413,8 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
             match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
             matches.append(match)
       if(len(rangeQueries) != 0):
-         match = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
-         matches.append(match)
+         matches = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
+         # matches.append(match)
       return matches
          
    else:
@@ -385,8 +438,8 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
             match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
             matches.append(match)
       if(len(rangeQueries) != 0):
-         match = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
-         matches.append(match)
+         matches = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
+         # matches.append(match)
       return matches
 
 
