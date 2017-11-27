@@ -253,33 +253,70 @@ def singleRangeQry(field,param,op,mode,yCursor,rCursor):
       print("\nInvalid range search!")
       return matches
    
+   #Get duplicates
    #Handle greater than
    if(op == '>'):
       #Gets the first record greater than or equal to the param
       record = yCursor.set_range(param.encode())
       if(record != None and mode == 0):
+         #Add duplicates of record first
+         dup = yCursor.next_dup()
+         while(dup!= None):
+            matches.append(dup[1].decode())
+            dup = yCursor.next_dup()               
          while(record):
             matches.append(record[1].decode())
             record = yCursor.next()
          return matches
       elif(record != None and mode == 1):
+         #Add duplicates of record first
+         dup = yCursor.next_dup()
+         while(dup!=None):
+            matches.append(rCursor.get(dup[1],db.DB_SET))
+            dup = yCursor.next_dup()               
          while(record):
             matches.append(rCursor.get(record[1],db.DB_SET))
             record = yCursor.next()
          return matches
+      
    #Handle less than
    elif(op == '<'):
-      #Fix this
+      #record with highest year
+      #Accounts for year greater than out highest, since set_range gets record
+      # greater to or equal than the year inputed.
+      mx = yCursor.get(db.DB_LAST)
+      if(int(mx[0].decode()) < int(param)):
+         param = mx[0].decode()
+    
       record = yCursor.set_range(param.encode())
+      #If we search year<2014 and there are no 2014 years it will grab the next highest
+      #so we step down to the previous record which will be less than our parameter/condition
+      if(int(record[0])>int(param)):
+         record = yCursor.prev()
+         
       if(record != None and mode == 0):
+         #Add duplicates first
+         dup = yCursor.next_dup()
+         while(dup!= None):
+            matches.append(dup[1].decode())
+            dup = yCursor.next_dup()
+         #Add all records with year smaller than param
          while(record):
             matches.append(record[1].decode())
             record = yCursor.prev()
-         return matches
+         return list(set(matches))
       elif(record != None and mode == 1):
+         #Add duplicates first
+         dup = yCursor.next_dup()
+         while(dup!=None):
+            matches.append(rCursor.get(dup[1],db.DB_SET))
+            dup = yCursor.next_dup()
+            #Add all records with year smaller than param
          while(record):
             matches.append(rCursor.get(record[1],db.DB_SET))      
             record = yCursor.prev()
+         return list(set(matches))
+      elif(record == None):
          return matches
 #You got two queries passed in that are identified as both being range queries and one is < and one is >
 #return the list of keys or full records that fall in this range.
@@ -308,11 +345,14 @@ def doubleRangeQry(qry1,qry2,mode,yCursor,rCursor):
       
       if(q[op] == "<") or (q[op] == ">"):
          match = singleRangeQry(field,param,q[op],mode,yCursor,rCursor)
-         for m in match:
-            matches.append(m)
+         matches.append(match)
 
-   matches = list(set(matches))
-   return matches
+   result = matches[0]
+   matches.pop(0)
+   for m in matches:
+      result = set(result).intersection(m)
+   
+   return list(result)
 
 #Handles singular clause queries.
 def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
@@ -394,9 +434,15 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
             match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
             matches.append(match)
       if(len(rangeQueries) != 0):
-         matches = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
+         match = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
          matches.append(match)
-      return matches
+         
+      result = matches[0]
+      matches.pop(0)
+      for m in matches:
+         result = set(result).intersection(m)
+   
+         return list(result)
          
    else:
       encloseRangeQry = False  
@@ -407,6 +453,7 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       queries = query.split()
       rangeQueries = []
       for qry in queries:
+         print(qry)
          #Put range queries into a sepertate list
          if(encloseRangeQry):
             if(qry.count('<') == 1 or qry.count('>') == 1 ):
@@ -419,9 +466,15 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
             match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
             matches.append(match)
       if(len(rangeQueries) != 0):
-         matches = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
-         # matches.append(match)
-      return matches
+         match = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
+         matches.append(match)
+         
+      result = matches[0]
+      matches.pop(0)
+      for m in matches:
+         result = set(result).intersection(m)
+   
+      return list(result)
 
 
 #This method will identify the operator in the query clause being used and return the index.
