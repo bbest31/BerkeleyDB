@@ -1,7 +1,7 @@
 #Phase 3: Data Retrieval
 from bsddb3 import db
 import re
-
+import unicodedata
 #return a list of matches
 def termQry(term,mode,tCursor,rCursor):
    
@@ -12,14 +12,14 @@ def termQry(term,mode,tCursor,rCursor):
       if(mode == 0):
          matches.append(record[1].decode())
       else:
-         matches.append(rCursor.get(record[1],db.DB_SET))
+         matches.append(rCursor.get(record[1],db.DB_SET).decode())
       #Add all other instances in title
       dup = tCursor.next_dup()
       while(dup!=None):
          if(mode == 0):
             matches.append(dup[1].decode())
          else:
-            matches.append(rCursor.get(dup[1],db.DB_SET))
+            matches.append(rCursor.get(dup[1],db.DB_SET).decode())
          dup = tCursor.next_dup()
    
    record = tCursor.get(b'a-'+ term.encode(),db.DB_SET)
@@ -28,7 +28,7 @@ def termQry(term,mode,tCursor,rCursor):
       if(mode == 0):
          matches.append(record[1].decode())
       else:
-         matches.append(rCursor.get(record[1],db.DB_SET))
+         matches.append(rCursor.get(record[1],db.DB_SET).decode())
          
       #Add all other instances in author
       dup = tCursor.next_dup()
@@ -36,7 +36,7 @@ def termQry(term,mode,tCursor,rCursor):
          if(mode == 0):
             matches.append(dup[1].decode())
          else:
-            matches.append(rCursor.get(dup[1],db.DB_SET))
+            matches.append(rCursor.get(dup[1],db.DB_SET).decode())
          dup = tCursor.next_dup()
    
    record = tCursor.get(b'o-'+ term.encode(),db.DB_SET) 
@@ -45,7 +45,7 @@ def termQry(term,mode,tCursor,rCursor):
       if(mode == 0):
          matches.append(record[1].decode())
       else:
-         matches.append(rCursor.get(record[1],db.DB_SET))
+         matches.append(rCursor.get(record[1],db.DB_SET).decode())
          
       #Add all other instances in other
       dup = tCursor.next_dup()
@@ -53,7 +53,7 @@ def termQry(term,mode,tCursor,rCursor):
          if(mode == 0):
             matches.append(dup[1].decode())
          else:
-            matches.append(rCursor.get(dup[1],db.DB_SET))
+            matches.append(rCursor.get(dup[1],db.DB_SET).decode())
          dup = tCursor.next_dup()
          
    
@@ -159,14 +159,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET))
+               matches.append(rCursor.get(record[1],db.DB_SET).decode())
             #Add all other instances in title
             dup = tCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET))
+                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
                dup = tCursor.next_dup()      
       #Query had form author:x 
       elif(field == 'author'):
@@ -176,14 +176,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET))
+               matches.append(rCursor.get(record[1],db.DB_SET).decode())
             #Add all other instances in author
             dup = tCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET))
+                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
                dup = tCursor.next_dup()
       #Query had form other:x        
       elif(field == 'other'):
@@ -193,14 +193,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET))
+               matches.append(rCursor.get(record[1],db.DB_SET).decode())
             #Add all other instances in title
             dup = tCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET))
+                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
                dup = tCursor.next_dup()      
       #Query had form year:x   
       elif(field == 'year'):
@@ -210,14 +210,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET))
+               matches.append(rCursor.get(record[1],db.DB_SET).decode())
             #Add all other instances where year = param
             dup = yCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET))
+                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
                dup = yCursor.next_dup()      
       else:
          print('\nInvalid prefix search!')
@@ -228,12 +228,57 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
 
 #return a list of matches
 #Look at Range_Search.py from BerkeleyDB lab 
-def singleRangeQry(field,param,mode,tCursor,yCursor,rCursor):
-   return 0
+def singleRangeQry(field,param,op,mode,yCursor,rCursor):
+   matches = []
+   
+   #Input error cases
+   if(field != 'year'):
+      print("\nInvalid range search prefix!")
+      return matches
+   try:
+      p = int(param)
+   except:
+      print("\nInvalid range search!")
+      return matches
+   
+   #Handle greater than
+   if(op == '>'):
+      #Gets the first record greater than or equal to the param
+      record = yCursor.set_range(param.encode())
+      if(record != None and mode == 0):
+         while(record):
+            matches.append(record[1].decode())
+            record = yCursor.next()
+         return matches
+      elif(record != None and mode == 1):
+         while(record):
+            matches.append(rCursor.get(record[1],db.DB_SET).decode())
+            record = yCursor.next()
+   #Handle less than
+   elif(op == '<'):
+      record = yCursor.set_range(param.encode())
+      if(record != None and mode == 0):
+         while(record):
+            matches.append(record[1].decode())
+            record = yCursor.prev()
+         return matches
+      elif(record != None and mode == 1):
+         while(record):
+            matches.append(rCursor.get(record[1],db.DB_SET).decode())      
+            record = yCursor.prev()
 
-#
-def doubleRangeQry(field,param,mode,yCursor):
-   return 0
+#You got two queries passed in that are identified as both being range queries and one is < and one is >
+#return the list of keys or full records that fall in this range.
+def doubleRangeQry(qry1,qry2,mode,yCursor,rCursor):
+   matches = []
+   print('Got to double range query')
+   #
+   #
+   #
+   #
+   #
+   
+   return matches
 
 #Handles singular clause queries.
 def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
@@ -245,16 +290,16 @@ def singleClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       #identify query operator
       field = query[:op]
       field = field.lower()
-      param = query[op+1:] 
+      param = query[op+1:]
       
-      if(query[op] == ":"):
+      if(param == ''):
+         print("\nEmpty condition!")
+         return matches
+      elif(query[op] == ":"):
          param = param.lower()
          matches = equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor)
       elif(query[op] == "<") or (query[op] == ">"):
-         matches = singleRangeQry(field,param,mode,yCursor)
-         
-      else:
-         matches = singleRangeQry(field,param,mode,tCursor,yCursor,rCursor)
+         matches = singleRangeQry(field,param,query[op],mode,yCursor,rCursor)
             
    else:
       query = query.lower()
@@ -270,8 +315,9 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
    matches = []
    #Find the range queries and assert that there is at most 2 and they must be different directions <,>
    if(query.count('<')>1) or (query.count('>')>1):
-      raise ValueError("\nInvalid range query combination.")
-   
+      print("\nInvalid range query combination.")
+      return matches
+      
    #if there is 1 or more phrase clauses we will alter the phrase to not interfere with the query splitting.
    if(query.count('"') >= 2):
    
@@ -293,32 +339,55 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
          query = tempLeft+tempMid+tempRight         
          quotations.pop(0)
          quotations.pop(0)
+       
+      encloseRangeQry = False  
+      #Before split we should check for count of < and count of > to both be 1
+      if(query.count('<') == 1 and query.count('>') == 1):
+         encloseRangeQry = True
       
       queries = query.split()
-   
+      rangeQueries = []
       for qry in queries:
-         #Reformat phrase query
-         if('$' in qry):
-            qry = qry.replace('$',' ')
-  
-         match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
+         #Put range queries into a sepertate list
+         if(encloseRangeQry):
+            if(qry.count('<') == 1 or qry.count('>') == 1 ):
+               rangeQueries.append(qry)
+         else:   
+            #Reformat phrase query
+            if('$' in qry):
+               qry = qry.replace('$',' ')
+         
+            match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
+            matches.append(match)
+      if(len(rangeQueries) != 0):
+         match = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
          matches.append(match)
+      return matches
+         
    else:
+      encloseRangeQry = False  
+      #Before split we should check for count of < and count of > to both be 1
+      if(query.count('<') == 1 and query.count('>') == 1):
+         encloseRangeQry = True
+         
       queries = query.split()
-      
+      rangeQueries = []
       for qry in queries:
-         #Reformat phrase query
-         if('$' in qry):
-            qry = qry.replace('$',' ')
-         match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
-         matches.append(match)      
-   #now matches is a list of list which contains matching records in each
-   #We now want to get the intersection of all these sets in order to find the real results.
-   result = matches[0]
-   matches.pop(0)
-   for match in matches:
-      result = set(result).intersection(match)
-   return result
+         #Put range queries into a sepertate list
+         if(encloseRangeQry):
+            if(qry.count('<') == 1 or qry.count('>') == 1 ):
+               rangeQueries.append(qry)
+         else:   
+            #Reformat phrase query
+            if('$' in qry):
+               qry = qry.replace('$',' ')
+         
+            match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
+            matches.append(match)
+      if(len(rangeQueries) != 0):
+         match = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
+         matches.append(match)
+      return matches
 
 
 #This method will identify the operator in the query clause being used and return the index.
@@ -435,6 +504,7 @@ def main():
             
       query = input("\nEnter query: ")
       query = str(query).strip()
+      print("\n========|Results|========")
       #may need a for loop to go through and any alpha char call .lower()
       #Decision making with input.
       if(query == 'Q') or (query == 'q'):
@@ -453,6 +523,9 @@ def main():
       elif(query.replace(" ",'') == "output=key"):
          outputMode = 0
          print("\n========|Output Format Changed|========")
+      elif(query == ''):
+         print('\nEmpty query!')
+         
       #Handle Query
       else:
          results = queryHandler(query,outputMode,termsCurs,yearsCurs,recsCurs)
