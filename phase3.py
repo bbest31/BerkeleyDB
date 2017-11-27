@@ -1,4 +1,5 @@
 #Phase 3: Data Retrieval
+#Brandon Best & Toluwanimi Akindele
 from bsddb3 import db
 import re
 import unicodedata
