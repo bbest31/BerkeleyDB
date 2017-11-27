@@ -64,12 +64,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
    matches = []
    
    if(field != 'title' and field != 'author' and field!='year' and field != 'other'):
-      print('\nInvalid prefix format!')
+      print('\nInvalid prefix format!\n')
       return matches
    #Identifies this as a phrase query
    if(param[0] == '"' and param[-1] == '"' and field != 'year' and param.count('"') == 2):
       
       param = param.replace('"','')
+      param = param.replace('$',' ')
+      
       terms = param.split()
       
       phrase = ''
@@ -86,9 +88,11 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
       
       phrase = phrase.strip()
       phraseMatches = []
+      matchesL = []
+      matchesL.append(matches)
       #Now we check to see if the match we found in the multi clause handler has that exact subtring in any of the fields
       #For each match set in matches
-      for j in matches:
+      for j in matchesL:
          #For each match in the match set
          for m in j:
             record = rCursor.get(m.encode(),db.DB_SET)
@@ -333,14 +337,17 @@ def doubleRangeQry(qry1,qry2,mode,yCursor,rCursor):
       
       if(param == '' or field == ''):
          print("\nInvalid query format!")
+         matches = []
          return matches
       elif(field != 'year'):
             print("\nInvalid range search prefix!")
+            matches = []
             return matches
       try:
          p = int(param)
       except:
          print("\nInvalid range search!")
+         matches = []
          return matches
       
       if(q[op] == "<") or (q[op] == ">"):
@@ -394,7 +401,6 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       
    #if there is 1 or more phrase clauses we will alter the phrase to not interfere with the query splitting.
    if(query.count('"') >= 2):
-   
       #we get all the indexes of the quotations
       quotations = []
       i = 0
@@ -422,15 +428,17 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       queries = query.split()
       rangeQueries = []
       for qry in queries:
+         
          #Put range queries into a sepertate list
          if(encloseRangeQry):
             if(qry.count('<') == 1 or qry.count('>') == 1 ):
                rangeQueries.append(qry)
-         else:   
+         if(qry not in rangeQueries):
+            
             #Reformat phrase query
             if('$' in qry):
                qry = qry.replace('$',' ')
-         
+            
             match = singleClauseQryHdlr(qry,mode,tCursor,yCursor,rCursor)
             matches.append(match)
       if(len(rangeQueries) != 0):
@@ -453,10 +461,10 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
       queries = query.split()
       rangeQueries = []
       for qry in queries:
-         print(qry)
+         
          #Put range queries into a sepertate list
-         if(encloseRangeQry):
-            if(qry.count('<') == 1 or qry.count('>') == 1 ):
+         if(qry.count('<') == 1 or qry.count('>') == 1 ):
+            if(encloseRangeQry):
                rangeQueries.append(qry)
          else:   
             #Reformat phrase query
@@ -618,7 +626,7 @@ def main():
          results = queryHandler(query,outputMode,termsCurs,yearsCurs,recsCurs)
          
          #Need to format print based on mode
-         if(len(results) == 0):
+         if(results == None):
             print("\nNo matches found.")
          #Print in key mode
          elif(outputMode == 0):
@@ -636,6 +644,10 @@ def main():
                ltype = lineType[0]
                
                if(ltype == 'article'):
+                  #Print Key
+                  key = re.findall(r'key="(.*?)"',r)
+                  if(key != []):
+                     print('Key: '+key[0])
                   #Print the Title
                   title = re.findall(r'<title>(.*?)</title>',r)
                   if(title != []):
@@ -662,6 +674,10 @@ def main():
                      print('Publisher: ' + publisher[0])
                   print('\n')                 
                else:
+                  #Print Key
+                  key = re.findall(r'key="(.*?)"',r)
+                  if(key != []):
+                     print('Key: '+key[0])                  
                   #Print the Title
                   title = re.findall(r'<title>(.*?)</title>',r)
                   if(title != []):
