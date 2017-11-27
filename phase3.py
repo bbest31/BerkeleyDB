@@ -266,8 +266,10 @@ def singleRangeQry(field,param,op,mode,yCursor,rCursor):
          while(record):
             matches.append(rCursor.get(record[1],db.DB_SET))
             record = yCursor.next()
+         return matches
    #Handle less than
    elif(op == '<'):
+      #Fix this
       record = yCursor.set_range(param.encode())
       if(record != None and mode == 0):
          while(record):
@@ -278,71 +280,38 @@ def singleRangeQry(field,param,op,mode,yCursor,rCursor):
          while(record):
             matches.append(rCursor.get(record[1],db.DB_SET))      
             record = yCursor.prev()
-
+         return matches
 #You got two queries passed in that are identified as both being range queries and one is < and one is >
 #return the list of keys or full records that fall in this range.
 def doubleRangeQry(qry1,qry2,mode,yCursor,rCursor):
-   match = []
+   
    matches = []
-   op = operandIndex(qry1)
-   qrys = []
-   qrys.append(qry1)
-   qrys.append(qry2)
-
-   if(op != None):
-      for query in qrys:
-         #identify query operator
-         field = query[:op]
-         field = field.lower()
-         param = query[op+1:]
-         if(param == ''):
-            print("\nEmpty condition!")
+   queries = [qry1,qry2]
+   
+   for q in queries:
+      op = operandIndex(q)
+      field = q[:op]
+      field = field.lower()
+      param = q[op+1:]
+      
+      if(param == '' or field == ''):
+         print("\nInvalid query format!")
+         return matches
+      elif(field != 'year'):
+            print("\nInvalid range search prefix!")
             return matches
-         elif(query[op] == "<") or (query[op] == ">"):
-            match = singleRangeQry(field,param,query[op],mode,yCursor,rCursor)
-            for m in match:
-               matches.append(m)
+      try:
+         p = int(param)
+      except:
+         print("\nInvalid range search!")
+         return matches
+      
+      if(q[op] == "<") or (q[op] == ">"):
+         match = singleRangeQry(field,param,q[op],mode,yCursor,rCursor)
+         for m in match:
+            matches.append(m)
 
    matches = list(set(matches))
-   #Input error cases
-   # if(field != 'year'):
-   #    print("\nInvalid range search prefix!")
-   #    return matches
-   # try:
-   #    p = int(param)
-   # except:
-   #    print("\nInvalid range search!")
-   #    return matches
-   
-   
-
-   # for op in operations:
-   #    #Handle greater than
-   #    if(op == '>'):
-   #       #Gets the first record greater than or equal to the param
-   #       record = yCursor.set_range(param.encode())
-   #       if(record != None and mode == 0):
-   #          while(record):
-   #             matches.append(record[1].decode())
-   #             record = yCursor.next()
-   #          return matches
-   #       elif(record != None and mode == 1):
-   #          while(record):
-   #             matches.append(rCursor.get(record[1],db.DB_SET).decode())
-   #             record = yCursor.next()
-   #    #Handle less than
-   #    elif(op == '<'):
-   #       record = yCursor.set_range(param.encode())
-   #       if(record != None and mode == 0):
-   #          while(record):
-   #             matches.append(record[1].decode())
-   #             record = yCursor.prev()
-   #          return matches
-   #       elif(record != None and mode == 1):
-   #          while(record):
-   #             matches.append(rCursor.get(record[1],db.DB_SET).decode())      
-   #             record = yCursor.prev()
-   
    return matches
 
 #Handles singular clause queries.
@@ -426,7 +395,7 @@ def multiClauseQryHdlr(query,mode,tCursor,yCursor,rCursor):
             matches.append(match)
       if(len(rangeQueries) != 0):
          matches = doubleRangeQry(rangeQueries[0],rangeQueries[1],mode,yCursor,rCursor)
-         # matches.append(match)
+         matches.append(match)
       return matches
          
    else:
