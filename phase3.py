@@ -2,7 +2,7 @@
 from bsddb3 import db
 import re
 import unicodedata
-#return a list of matches
+#Handles queries that have a term and tries to find it in all fields of a record
 def termQry(term,mode,tCursor,rCursor):
    
    matches = []
@@ -12,14 +12,14 @@ def termQry(term,mode,tCursor,rCursor):
       if(mode == 0):
          matches.append(record[1].decode())
       else:
-         matches.append(rCursor.get(record[1],db.DB_SET).decode())
+         matches.append(rCursor.get(record[1],db.DB_SET))
       #Add all other instances in title
       dup = tCursor.next_dup()
       while(dup!=None):
          if(mode == 0):
             matches.append(dup[1].decode())
          else:
-            matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+            matches.append(rCursor.get(dup[1],db.DB_SET))
          dup = tCursor.next_dup()
    
    record = tCursor.get(b'a-'+ term.encode(),db.DB_SET)
@@ -28,7 +28,7 @@ def termQry(term,mode,tCursor,rCursor):
       if(mode == 0):
          matches.append(record[1].decode())
       else:
-         matches.append(rCursor.get(record[1],db.DB_SET).decode())
+         matches.append(rCursor.get(record[1],db.DB_SET))
          
       #Add all other instances in author
       dup = tCursor.next_dup()
@@ -36,7 +36,7 @@ def termQry(term,mode,tCursor,rCursor):
          if(mode == 0):
             matches.append(dup[1].decode())
          else:
-            matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+            matches.append(rCursor.get(dup[1],db.DB_SET))
          dup = tCursor.next_dup()
    
    record = tCursor.get(b'o-'+ term.encode(),db.DB_SET) 
@@ -45,7 +45,7 @@ def termQry(term,mode,tCursor,rCursor):
       if(mode == 0):
          matches.append(record[1].decode())
       else:
-         matches.append(rCursor.get(record[1],db.DB_SET).decode())
+         matches.append(rCursor.get(record[1],db.DB_SET))
          
       #Add all other instances in other
       dup = tCursor.next_dup()
@@ -53,7 +53,7 @@ def termQry(term,mode,tCursor,rCursor):
          if(mode == 0):
             matches.append(dup[1].decode())
          else:
-            matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+            matches.append(rCursor.get(dup[1],db.DB_SET))
          dup = tCursor.next_dup()
          
    
@@ -87,66 +87,78 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
       phrase = phrase.strip()
       phraseMatches = []
       #Now we check to see if the match we found in the multi clause handler has that exact subtring in any of the fields
-      for m in matches:
-         record = rCursor.get(m.encode(),db.DB_SET)
-         full = record[1].decode()
-         
-         #Now search for substring in the appropriate field.
-         #Search in the title field
-         if(field == 'title'):
-            title = re.findall(r'<title>(.*?)</title>',full)            
-            if(phrase in title[0].lower()):
-               if(mode == 0):
-                  phraseMatches.append(m)
-               else:
-                  phraseMatches.append(full)
-                  
-         #Search in the author field
-         elif(field == 'author'):
-            author = re.findall(r'<author>(.*?)</author>',full)
-            if(phrase in author[0].lower()):
-               if(mode == 0):
-                  phraseMatches.append(m)
-               else:
-                  phraseMatches.append(full)
-                  
-                  
-         #identify if the record is an article or inproceeding      
-         elif(field == 'other'):
-            lineType = re.findall(r'(?<=\<).+?(?=\ )',full)
-            ltype = lineType[0]
+      #For each match set in matches
+      for j in matches:
+         #For each match in the match set
+         for m in j:
+            record = rCursor.get(m.encode(),db.DB_SET)
+            full = record[1].decode()
             
-            #Search in journal and publisher fields if article
-            if(ltype == 'article'):
-               journal = re.findall(r'<journal>(.*?)</journal>',full)
-               if(phrase in journal[0].lower()):
-                  if(mode == 0):
-                     phraseMatches.append(m)
-                  else:
-                     phraseMatches.append(full)
-               else:
-                  publisher = re.findall(r'<publisher>(.*?)</publisher>',full)
-                  if(phrase in publisher[0].lower()):
+            #Now search for substring in the appropriate field.
+            #Search in the title field
+            if(field == 'title'):
+               title = re.findall(r'<title>(.*?)</title>',full)  
+               if(title != []):
+                  if(phrase in title[0].lower()):
                      if(mode == 0):
                         phraseMatches.append(m)
                      else:
                         phraseMatches.append(full)
-                        
-            #Search in booktitle and publisher fields if inproceedings         
-            elif(ltype == 'inproceedings'):
-               bookTitle = re.findall(r'<booktitle>(.*?)</booktitle>',full)
-               if(phrase in bookTitle[0].lower()):
-                  if(mode == 0):
-                     phraseMatches.append(m)
-                  else:
-                     phraseMatches.append(full)
-               else:
-                  publisher = re.findall(r'<publisher>(.*?)</publisher>',full)
-                  if(phrase in publisher[0].lower()):
+                     
+            #Search in the author field
+            elif(field == 'author'):
+               author = re.findall(r'<author>(.*?)</author>',full)
+               if(author != []):
+                  if(phrase in author[0].lower()):
                      if(mode == 0):
                         phraseMatches.append(m)
                      else:
-                        phraseMatches.append(full)               
+                        phraseMatches.append(full)
+                     
+                     
+            #identify if the record is an article or inproceeding      
+            elif(field == 'other'):
+               lineType = re.findall(r'(?<=\<).+?(?=\ )',full)
+               ltype = lineType[0]
+               
+               #Search in journal and publisher fields if article
+               if(ltype == 'article'):
+                  journal = re.findall(r'<journal>(.*?)</journal>',full)
+                  if(journal != []):
+                     if(phrase in journal[0].lower()):
+                        if(mode == 0):
+                           phraseMatches.append(m)
+                        else:
+                           phraseMatches.append(full)
+                     else:
+                        publisher = re.findall(r'<publisher>(.*?)</publisher>',full)
+                        if(publisher != []):
+                           if(phrase in publisher[0].lower()):
+                              if(mode == 0):
+                                 phraseMatches.append(m)
+                              else:
+                                 phraseMatches.append(full)
+                           
+               #Search in booktitle and publisher fields if inproceedings         
+               elif(ltype == 'inproceedings'):
+                  bookTitle = re.findall(r'<booktitle>(.*?)</booktitle>',full)
+                  if(bookTitle != []):
+                     if(phrase in bookTitle[0].lower()):
+                        if(mode == 0):
+                           phraseMatches.append(m)
+                        else:
+                           phraseMatches.append(full)
+                     else:
+                        publisher = re.findall(r'<publisher>(.*?)</publisher>',full)
+                        if(publisher != []):
+                           if(phrase in publisher[0].lower()):
+                              if(mode == 0):
+                                 phraseMatches.append(m)
+                              else:
+                                 phraseMatches.append(full)
+      #Here we get rid of any duplicates.
+      phraseMatches = set(phraseMatches)
+      phraseMatches = list(phraseMatches)
       return phraseMatches
    
    elif(param.count('"')==0):
@@ -159,14 +171,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET).decode())
+               matches.append(rCursor.get(record[1],db.DB_SET))
             #Add all other instances in title
             dup = tCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
                dup = tCursor.next_dup()      
       #Query had form author:x 
       elif(field == 'author'):
@@ -176,31 +188,31 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET).decode())
+               matches.append(rCursor.get(record[1],db.DB_SET))
             #Add all other instances in author
             dup = tCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
                dup = tCursor.next_dup()
       #Query had form other:x        
       elif(field == 'other'):
-         record = tCursor.get(b't-'+ term.encode(),db.DB_SET)
+         record = tCursor.get(b'o-'+ param.encode(),db.DB_SET)
          if(record != None):
             #Add the match found
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET).decode())
+               matches.append(rCursor.get(record[1],db.DB_SET))
             #Add all other instances in title
             dup = tCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
                dup = tCursor.next_dup()      
       #Query had form year:x   
       elif(field == 'year'):
@@ -210,14 +222,14 @@ def equivalenceQuery(field,param,mode,tCursor,yCursor,rCursor):
             if(mode == 0):
                matches.append(record[1].decode())
             else:
-               matches.append(rCursor.get(record[1],db.DB_SET).decode())
+               matches.append(rCursor.get(record[1],db.DB_SET))
             #Add all other instances where year = param
             dup = yCursor.next_dup()
             while(dup!=None):
                if(mode == 0):
                   matches.append(dup[1].decode())
                else:
-                  matches.append(rCursor.get(dup[1],db.DB_SET).decode())
+                  matches.append(rCursor.get(dup[1],db.DB_SET))
                dup = yCursor.next_dup()      
       else:
          print('\nInvalid prefix search!')
@@ -252,7 +264,7 @@ def singleRangeQry(field,param,op,mode,yCursor,rCursor):
          return matches
       elif(record != None and mode == 1):
          while(record):
-            matches.append(rCursor.get(record[1],db.DB_SET).decode())
+            matches.append(rCursor.get(record[1],db.DB_SET))
             record = yCursor.next()
    #Handle less than
    elif(op == '<'):
@@ -264,7 +276,7 @@ def singleRangeQry(field,param,op,mode,yCursor,rCursor):
          return matches
       elif(record != None and mode == 1):
          while(record):
-            matches.append(rCursor.get(record[1],db.DB_SET).decode())      
+            matches.append(rCursor.get(record[1],db.DB_SET))      
             record = yCursor.prev()
 
 #You got two queries passed in that are identified as both being range queries and one is < and one is >
@@ -557,7 +569,7 @@ def main():
             
       query = input("\nEnter query: ")
       query = str(query).strip()
-      print("\n========|Results|========")
+      print("\n========|Results|========\n")
       #may need a for loop to go through and any alpha char call .lower()
       #Decision making with input.
       if(query == 'Q') or (query == 'q'):
@@ -588,17 +600,73 @@ def main():
             print("\nNo matches found.")
          #Print in key mode
          elif(outputMode == 0):
+            c = 1
             for r in results:
                r = str(r)
-               print("\nKey: "+r)
+               print("\n"+str(c)+'.'+r)
+               c+=1
          #Print in full mode
          else:
             for r in results:
                r =str(r)
-               #Will format this later
-               print(r)
+               #Format the output
+               lineType = re.findall(r'(?<=\<).+?(?=\ )',r)
+               ltype = lineType[0]
                
-         print("\n========|^Results^|========")
+               if(ltype == 'article'):
+                  #Print the Title
+                  title = re.findall(r'<title>(.*?)</title>',r)
+                  if(title != []):
+                     print('Title: '+ title[0])
+                  #Print Author
+                  author = re.findall(r'<author>(.*?)</author>',r)
+                  if(author != []):
+                     print('Author: '+ author[0])
+                  #Pring Pages
+                  pages = re.findall(r'<pages>(.*?)</pages>',r)
+                  if(pages != []):
+                     print('Pages: '+ pages[0])
+                  #Print Year
+                  year = re.findall(r'<year>(.*?)</year>',r)
+                  if(year != []):
+                     print('Year: '+ year[0])
+                  #Print Journal
+                  journal = re.findall(r'<journal>(.*?)</journal>',r)
+                  if(journal != []):
+                     print('Journal: '+ journal[0])
+                  #Print Publisher
+                  publisher = re.findall(r'<publisher>(.*?)</publisher>',r)
+                  if(publisher != []):
+                     print('Publisher: ' + publisher[0])
+                  print('\n')                 
+               else:
+                  #Print the Title
+                  title = re.findall(r'<title>(.*?)</title>',r)
+                  if(title != []):
+                     print('Title: '+ title[0])
+                  #Print Author
+                  author = re.findall(r'<author>(.*?)</author>',r)
+                  if(author != []):
+                     print('Author: '+ author[0])
+                  #Pring Pages
+                  pages = re.findall(r'<pages>(.*?)</pages>',r)
+                  if(pages != []):
+                     print('Pages: '+ pages[0])
+                  #Print Year
+                  year = re.findall(r'<year>(.*?)</year>',r)
+                  if(year != []):
+                     print('Year: '+ year[0])
+                  #Print Journal
+                  bookTitle = re.findall(r'<booktitle>(.*?)</booktitle>',r)
+                  if(bookTitle != []):
+                     print('Book Title: '+ bookTitle[0])
+                  #Print Publisher
+                  publisher = re.findall(r'<publisher>(.*?)</publisher>',r)
+                  if(publisher != []):
+                     print('Publisher: ' + publisher[0])                  
+                  print('\n')
+                  
+         print("========|^Results^|========")
    print("\n========|Program Closed|========")
    return 0
 
